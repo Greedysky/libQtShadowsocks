@@ -2,16 +2,30 @@ sudo: required
 dist: trusty
 language: cpp
 cache: apt
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - sourceline: 'ppa:hedges/qt5.5'
+    packages:
+      - g++-7
+      - cmake
+      - qt55base
+      - libbotan1.10-dev
+
+env:
+  - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
 
 branches:
   only:
     - 'master'
 
 before_install:
-  - sudo apt-get -qq update
-  - sudo apt-get -qq install qt5-qmake qt5-default qtbase5-dev libbotan1.10-dev gcc-4.8
+  - eval "${MATRIX_EVAL}"
 
 script:
-  - qmake
-  - make
+  # Build
+  - mkdir build && cd build
+  - cmake .. -DQt5Core_DIR="/opt/qt55/lib/cmake/Qt5Core" -DQt5Network_DIR="/opt/qt55/lib/cmake/Qt5Network" -DQt5Test_DIR="/opt/qt55/lib/cmake/Qt5Test"
+  - make && make test
 

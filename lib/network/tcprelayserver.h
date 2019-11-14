@@ -1,5 +1,7 @@
 /*
- * Copyright (C) 2015-2016 Symeon Huang <hzwhuang@gmail.com>
+ * tcprelayserver.h - the header file of TcpRelayServer class
+ *
+ * Copyright (C) 2018 Symeon Huang <hzwhuang@gmail.com>
  *
  * This file is part of the libQtShadowsocks.
  *
@@ -18,34 +20,30 @@
  * <http://www.gnu.org/licenses/>.
  */
 
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef TCPRELAYSERVER_H
+#define TCPRELAYSERVER_H
 
-#include <QtGlobal>
-#include <QStringList>
+#include "tcprelay.h"
 
-struct Utils
+namespace QSS {
+
+class QSS_EXPORT TcpRelayServer : public TcpRelay
 {
-    //test data encrypt/decrypt speed. print result to terminal
-    static void testSpeed(const std::string &method, uint32_t data_size_mb);
-    static void testSpeed(uint32_t data_size_mb);//test all methods
+    Q_OBJECT
+public:
+    TcpRelayServer(QTcpSocket *localSocket,
+                   int timeout,
+                   Address server_addr,
+                   const Encryptor::Creator& ec,
+                   bool autoBan);
 
-    /**
-     * @brief messageHandler handles Qt messages/logs
-     * @param type
-     * @param context
-     * @param msg
-     */
-    static void messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
+protected:
+    const bool autoBan;
 
-    enum class LogLevel {
-        DEBUG,
-        INFO,
-        WARN,
-        ERROR,
-        FATAL
-    };
-    static LogLevel logLevel;
+    void handleStageAddr(std::string &data) final;
+    void handleLocalTcpData(std::string &data) final;
+    void handleRemoteTcpData(std::string &data) final;
 };
 
-#endif // UTILS_H
+}
+#endif // TCPRELAYSERVER_H

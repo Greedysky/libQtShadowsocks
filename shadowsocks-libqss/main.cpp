@@ -21,6 +21,7 @@
 #include <QCoreApplication>
 #include <QCommandLineParser>
 #include <signal.h>
+#include <iostream>
 #include "client.h"
 #include "utils.h"
 
@@ -31,8 +32,28 @@ static void onSIGINT_TERM(int sig)
     if (sig == SIGINT || sig == SIGTERM) qApp->quit();
 }
 
+Utils::LogLevel stringToLogLevel(const QString& str)
+{
+    if (str.compare("DEBUG", Qt::CaseInsensitive) == 0) {
+        return Utils::LogLevel::DEBUG;
+    } else if (str.compare("INFO", Qt::CaseInsensitive) == 0) {
+        return Utils::LogLevel::INFO;
+    } else if (str.compare("WARN", Qt::CaseInsensitive) == 0) {
+        return Utils::LogLevel::WARN;
+    } else if (str.compare("ERROR", Qt::CaseInsensitive) == 0) {
+        return Utils::LogLevel::ERROR;
+    } else if (str.compare("FATAL", Qt::CaseInsensitive) == 0) {
+        return Utils::LogLevel::FATAL;
+    }
+    std::cerr << "Log level " << str.toStdString()
+              << " is not recognised, default to INFO" << std::endl;
+    return Utils::LogLevel::INFO;
+}
+
 int main(int argc, char *argv[])
 {
+    qInstallMessageHandler(Utils::messageHandler);
+
     QCoreApplication a(argc, argv);
     a.setApplicationName("Shadowsocks-libQtShadowsocks");
     a.setApplicationVersion(Common::version());
@@ -77,12 +98,11 @@ int main(int argc, char *argv[])
     QCommandLineOption testSpeed(
                 QStringList() << "T" << "speed-test",
                 "test encrypt/decrypt speed.");
-    QCommandLineOption debug(
-                QStringList() << "D" << "debug",
-                "debug-level log.");
-    QCommandLineOption auth(
-                QStringList() << "A" << "auth",
-                "enable one-time message authentication.");
+    QCommandLineOption log("L",
+                           "logging level. Valid levels are: debug, info, "
+                           "warn, error, fatal.",
+                           "log_level",
+                           "info");
     QCommandLineOption autoBan("autoban",
                 "automatically ban IPs that send malformed header. "
                 "ignored in local mode.");
@@ -97,13 +117,12 @@ int main(int argc, char *argv[])
     parser.addOption(http);
     parser.addOption(serverMode);
     parser.addOption(testSpeed);
-    parser.addOption(debug);
-    parser.addOption(auth);
+    parser.addOption(log);
     parser.addOption(autoBan);
     parser.process(a);
 
+    Utils::logLevel = stringToLogLevel(parser.value(log));
     Client c;
-
     if (!c.readConfig(parser.value(configFile))) {
         c.setup(parser.value(serverAddress),
                 parser.value(serverPort),
@@ -112,23 +131,18 @@ int main(int argc, char *argv[])
                 parser.value(password),
                 parser.value(encryptionMethod),
                 parser.value(timeout),
-                parser.isSet(http),
-                parser.isSet(debug),
-                parser.isSet(auth));
+                parser.isSet(http));
     }
     c.setAutoBan(parser.isSet(autoBan));
-    c.setDebug(parser.isSet(debug));
+
     //command-line option has a higher priority to make H, S, T consistent
     if (parser.isSet(http)) {
         c.setHttpMode(true);
     }
-    if (parser.isSet(auth)) {
-        c.setAuth(true);
-    }
 
     if (parser.isSet(testSpeed)) {
-        if (c.getMethod().isEmpty()) {
-            std::printf("Testing all encryption methods...\n");
+        if (c.getMethod().empty()) {
+            std::cout << "Testing all encryption methods..." << std::endl;
             Utils::testSpeed(100);
         } else {
             Utils::testSpeed(c.getMethod(), 100);
